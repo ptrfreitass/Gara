@@ -1,3 +1,6 @@
 [submodule "backend"]
 	path = backend
 	url = git@github.com:ptrfreitass/gara-backend.git
+[submodule "frontend"]
+	path = frontend
+	url = git@github.com:ptrfreitass/Gara-Frontend.git
