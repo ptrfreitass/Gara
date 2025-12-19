@@ -1,0 +1,67 @@
+
+services:
+  # Backend PHP (Laravel) - PHP-FPM
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ./docker/Dockerfile
+    container_name: gara-backend
+    volumes:
+      - ./backend:/var/www/html
+    depends_on:
+      - db
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8000
+
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_DATABASE: Gara
+      DB_USERNAME: gara
+      DB_PASSWORD: gara
+
+  # Nginx para servir o Laravel
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: gara-nginx
+    ports:
+      - "8000:80"        # http://localhost:8000 -> Laravel
+    volumes:
+      - ./backend:/var/www/html
+    depends_on:
+      - backend
+
+  # Frontend Angular (modo desenvolvimento)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ./docker/Dockerfile
+    container_name: gara-frontend
+    ports:
+      - "4200:4200"      # http://localhost:4200 -> Angular dev server
+    volumes:
+      - ./frontend:/usr/src/app
+      - /usr/src/app/node_modules
+    command: ["npm", "run", "start"]
+    depends_on:
+      - backend
+
+  # Banco de dados PostgreSQL
+  db:
+    image: postgres:16
+    container_name: gara-db
+    environment:
+      POSTGRES_DB: gara
+      POSTGRES_USER: gara
+      POSTGRES_PASSWORD: gara
+    ports:
+      - "5432:5432"
+    volumes:
+      - gara_db_data:/var/lib/postgresql/data
+
+volumes:
+  gara_db_data:
