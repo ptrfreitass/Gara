@@ -1,56 +1,60 @@
-
 services:
-  # Backend PHP (Laravel) - PHP-FPM
   backend:
     build:
       context: ./backend
       dockerfile: ./docker/Dockerfile
+      args:
+        WWWGROUP: '${WWWGROUP:-1000}'
     container_name: gara-backend
     volumes:
-      - ./backend:/var/www/html
+      - ./backend:/var/www
     depends_on:
       - db
+    networks: # ADICIONADO
+      - app-network
     environment:
+      WWWUSER: '${WWWUSER:-1000}'
       APP_ENV: local
       APP_DEBUG: "true"
-      APP_URL: http://localhost:8000
-
       DB_CONNECTION: pgsql
       DB_HOST: db
       DB_PORT: 5432
-      DB_DATABASE: Gara
+      DB_DATABASE: gara
       DB_USERNAME: gara
       DB_PASSWORD: gara
 
-  # Nginx para servir o Laravel
   nginx:
     build:
       context: ./nginx
       dockerfile: Dockerfile
     container_name: gara-nginx
     ports:
-      - "8000:80"        # http://localhost:8000 -> Laravel
+      - "8000:80"
     volumes:
-      - ./backend:/var/www/html
+      - ./backend:/var/www/public
+      - ./nginx:/etc/nginx/conf.d
     depends_on:
       - backend
+      - frontend
+    networks:
+      - app-network
 
-  # Frontend Angular (modo desenvolvimento)
   frontend:
     build:
       context: ./frontend
       dockerfile: ./docker/Dockerfile
     container_name: gara-frontend
     ports:
-      - "4200:4200"      # http://localhost:4200 -> Angular dev server
+      - "4200:4200"
+    environment:
+      - CHOKIDAR_USEPOLLING=true  # Força o monitoramento de arquivos no Windows
     volumes:
       - ./frontend:/usr/src/app
       - /usr/src/app/node_modules
-    command: ["npm", "run", "start"]
-    depends_on:
-      - backend
+    command: ["npm", "run", "start", "--", "--host", "0.0.0.0", "--poll", "30000"] # Importante para o Docker
+    networks:
+      - app-network
 
-  # Banco de dados PostgreSQL
   db:
     image: postgres:16
     container_name: gara-db
@@ -62,6 +66,21 @@ services:
       - "5432:5432"
     volumes:
       - gara_db_data:/var/lib/postgresql/data
+    networks:
+      - app-network # CORRIGIDO (era app_network)
+
+  mailhog:
+    image: mailhog/mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - app-network
+
+networks:
+  app-network: 
+    driver: bridge
 
 volumes:
   gara_db_data:
+    driver: local
