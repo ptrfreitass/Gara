@@ -1,0 +1,32 @@
+javascript:(function(){
+    /* 1. Captura o conteúdo do container que você identificou como o principal */
+    const conteudoNota = document.getElementById('collapse1') ? document.getElementById('collapse1').outerHTML : document.documentElement.outerHTML;
+    const urlNota = window.location.href;
+
+    /* 2. Configura o destino (seu Laravel local ou produção) */
+    const API_URL = 'http://localhost:8000/api/importar-nota';
+
+    /* 3. Envia os dados via POST */
+    fetch(API_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+            html: conteudoNota,
+            url: urlNota
+        })
+    })
+    .then(response => {
+        if (response.ok) alert('✅ Nota enviada com sucesso para o seu sistema!');
+        else alert('❌ Erro no servidor: ' + response.status);
+    })
+    .catch(err => {
+        alert('⚠️ Erro de conexão. Verifique se o Laravel está rodando e o CORS está liberado.');
+        console.error(err);
+    });
+})();
+
+
+// curl -X POST http://localhost:8000/api/importar-nota \ -H "Content-Type: application/json" \ -d '{"html": "teste", "url": "teste"}'
