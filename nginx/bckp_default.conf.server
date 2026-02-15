@@ -1,0 +1,33 @@
+upstream backend-api {
+    server backend:8000; # Nome do serviço no docker-compose do servidor
+}
+
+server {
+    listen 80;
+    server_name localhost;
+
+    root /var/www/frontend; # Onde o Dockerfile copiou o Angular
+    index index.html;
+
+    # Configuração do Angular (SPA)
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Proxy reverso para o Laravel
+    location /api {
+        proxy_pass http://backend-api;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Opcional: Proxy para o Mailhog (se estiver rodando no servidor)
+    location /mailhog/ {
+        proxy_pass http://mailhog:8025/;
+        proxy_set_header Host $host;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}

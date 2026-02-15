@@ -1,12 +1,17 @@
 #!/bin/bash
-echo "🏗️ Construindo imagens de produção..."
+
+VERSION="v1"
+
+echo "🚀 Iniciando Build de Produção ($VERSION)..."
 
 # Build Backend
-docker build -t frpreetin/gara-backend:latest -f Dockerfile.prod ./backend
-docker push frpreetin/gara-backend:latest
+docker build --target production -t preetin/gara-backend:$VERSION -f backend/Dockerfile .
 
-# Build Frontend
-docker build -t frpreetin/gara-frontend:latest -f Dockerfile.prod ./frontend
-docker push frpreetin/gara-frontend:latest
+# Build Nginx + Angular
+docker build -t preetin/gara-nginx:$VERSION -f nginx/Dockerfile .
 
-echo "✅ Imagens enviadas para o Docker Hub!"
+echo "⬆️ Enviando para o Docker Hub..."
+docker push preetin/gara-backend:$VERSION
+docker push preetin/gara-nginx:$VERSION
+
+echo "✅ Imagens enviadas com sucesso!"

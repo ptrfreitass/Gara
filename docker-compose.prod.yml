@@ -1,0 +1,103 @@
+services:
+  # --- Banco de Dados ---
+  db:
+    image: postgres:16-alpine
+    container_name: gara-db
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - gara_db_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    restart: always
+    # Porta removida para segurança (acesso apenas interno na rede docker)
+    # Se precisar acessar do PC via Tailscale, descomente e mapeie para 127.0.0.1:5432
+    
+  # --- Cache & Sessão ---
+  redis:
+    image: redis:8.4-alpine
+    container_name: gara-redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - gara_redis_data:/data
+    networks:
+      - app-network
+    restart: always
+
+  # --- Backend (API) ---
+  backend:
+    image: seu-usuario-dockerhub/gara-backend:latest # <--- Sua imagem enviada
+    container_name: gara-backend
+    depends_on:
+      - db
+      - redis
+    networks:
+      - app-network
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_KEY: ${APP_KEY}
+      DB_HOST: db
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: redis
+      OCTANE_SERVER: swoole
+      # ... adicione as outras envs necessárias
+    restart: always
+    # Healthcheck é vital para o Nginx saber quando começar a mandar tráfego
+    healthcheck:
+      test: ["CMD", "php", "artisan", "octane:status"]
+      interval: 30s
+      retries: 3
+
+  # --- Queue Worker ---
+  queue:
+    image: seu-usuario-dockerhub/gara-backend:latest # <--- Usa a mesma imagem do back
+    container_name: gara-queue
+    depends_on:
+      - db
+      - redis
+    networks:
+      - app-network
+    environment:
+      APP_ENV: production
+      DB_HOST: db
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: redis
+    # Comando específico para rodar a fila
+    command: php artisan queue:work redis --tries=3 --timeout=90
+    restart: always
+
+  # --- Servidor Web & Frontend ---
+  nginx:
+    image: seu-usuario-dockerhub/gara-nginx:latest # <--- Sua imagem com Angular + Conf
+    container_name: gara-web
+    ports:
+      - "80:80" # Porta exposta para o Tailscale/Rede Local
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: always
+
+  # --- E-mail (Opcional em Prod) ---
+  # Se for usar SMTP real (Gmail, AWS SES, Mailgun), remova este serviço
+  # e configure as ENVs de MAIL no backend. Se for manter Mailhog:
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: gara-mailhog
+    ports:
+      - "8025:8025" # Interface Web
+    networks:
+      - app-network
+    restart: unless-stopped
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  gara_db_data:
+  gara_redis_data:
