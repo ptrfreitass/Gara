@@ -1,0 +1,159 @@
+services:
+  # PostgreSQL
+  postgres:
+    image: postgres:16-alpine
+    container_name: gara_postgres_dev
+    environment:
+      POSTGRES_DB: gara_db
+      POSTGRES_USER: gara_preto
+      POSTGRES_PASSWORD: gara_dev_pass_512151Pee@
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - gara_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gara_user -d gara_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: gara_redis_dev
+    command: redis-server --requirepass password_gara_115125Pe@ --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - gara_network  
+    healthcheck:  
+      test: ["CMD", "redis-cli", "-a", "password_gara_115125Pe@", "ping"]  
+      interval: 10s  
+      timeout: 5s  
+      retries: 5 
+
+  # Backend Laravel + Octane
+  backend:
+    build:
+      context: ./gara_backend
+      dockerfile: ../docker/backend/Dockerfile
+    container_name: gara_backend_dev
+    command: >
+      sh -c "
+        echo '⏳ Aguardando banco de dados...' &&
+        sleep 5 &&
+        echo '✅ Tentando conectar...' &&
+        php artisan config:clear || true &&
+        php artisan cache:clear || true &&
+        php artisan migrate --force || true &&
+        echo '🚀 Iniciando Octane com Watch...' &&
+        php artisan octane:start --server=swoole --host=0.0.0.0 --port=8000
+      "
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./gara_backend:/app/gara_backend
+      - /app/gara_backend/vendor  # Preserva o vendor do container (não sobrescreve com o local)
+      - /app/gara_backend/node_modules 
+    environment:
+      APP_NAME: "Gara"
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8000
+      
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: gara_db
+      DB_USERNAME: gara_preto
+      DB_PASSWORD: gara_dev_pass_512151Pee@
+      
+      CACHE_DRIVER: redis
+      QUEUE_CONNECTION: redis
+      SESSION_DRIVER: redis
+      
+      REDIS_HOST: redis
+      REDIS_PASSWORD: password_gara_115125Pe@
+      REDIS_PORT: 6379
+      
+      MAIL_MAILER: smtp
+      MAIL_HOST: smtp.gmail.com
+      MAIL_PORT: 587
+      MAIL_USERNAME: ptrfreitass@gmail.com
+      MAIL_PASSWORD: fxzheuvmrawzhqzf
+      MAIL_ENCRYPTION: tls
+      MAIL_FROM_ADRESS: ptrfreitass@gmail.com
+      MAIL_FROM_NAME: "${COMPOSE_PROJECT_NAME}" 
+      
+      OCTANE_SERVER: swoole
+      CHOKIDAR_USEPOLLING: true
+      WATCHPACK_POLLING: true
+      SESSION_EXPIRE_ON_CLOSE: ${SESSION_EXPIRE_ON_CLOSE}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - gara_network
+    restart: unless-stopped
+
+  # Frontend Angular
+  frontend:
+    image: node:20
+    container_name: gara_frontend_dev
+    working_dir: /app
+    ports:
+      - "4200:4200"
+    command: >
+      sh -c "
+        echo '📦 Instalando dependências do frontend...' &&
+        npm install &&
+        echo '🚀 Iniciando Angular dev server com HMR...' &&
+        npm start
+      "
+    volumes:
+      - ./gara_frontend:/app
+      - /app/node_modules  # Volume anônimo para node_modules
+    environment:
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+    networks:
+      - gara_network  
+    healthcheck:  
+      test: ["CMD-SHELL", "curl -f http://localhost:4200 || exit 1"]  
+      interval: 30s  
+      timeout: 10s  
+      retries: 5  
+      start_period: 60s 
+
+  # Nginx (Reverse Proxy)
+  nginx:
+    image: nginx:alpine
+    container_name: gara_nginx_dev
+    ports:
+      - "80:80"
+    volumes:
+      - ./docker/nginx/dev.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./docker/nginx/error.html:/usr/share/nginx/html/error.html:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - gara_network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  gara_network:
+    driver: bridge

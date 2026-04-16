@@ -1,0 +1,81 @@
+# docker-compose.prod.yml
+services:
+  # PostgreSQL
+  postgres:
+    image: postgres:16-alpine
+    container_name: gara_postgres_prod
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+    networks:
+      - gara_network
+    restart: unless-stopped
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: gara_redis_prod
+    volumes:
+      - redis_data_prod:/data
+    networks:
+      - gara_network
+    restart: unless-stopped
+
+  # Backend Laravel + Octane
+  backend:
+    image: ${DOCKER_USERNAME}/gara_backend:${VERSION}
+    container_name: gara_backend_prod
+    environment:
+      APP_ENV: production
+      APP_DEBUG: false
+      APP_KEY: ${APP_KEY}
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - gara_network
+    restart: unless-stopped
+
+  # Frontend Angular
+  frontend:
+    image: ${DOCKER_USERNAME}/gara-frontend:${VERSION}
+    container_name: gara_frontend_prod
+    networks:
+      - gara_network
+    restart: unless-stopped
+
+  # Nginx (proxy reverso)
+  nginx:
+    image: nginx:alpine
+    container_name: gara_nginx_prod
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/prod.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - gara_network
+    restart: unless-stopped
+
+volumes:
+  postgres_data_prod:
+  redis_data_prod:
+
+networks:
+  gara_network:
+    driver: bridge

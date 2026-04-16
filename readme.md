@@ -1,95 +1,51 @@
-# Sobre
+# GARA - Sistema Web
 
-Neste repositório vamos fazer a criação de uma imagem Docker que embora possa ser utilizada em produção, ainda merece ser aperfeiçoada para permitir realmente o escalonamento da aplicação.
+Stack completa com Angular, Laravel Octane, PostgreSQL, Redis e Docker.
 
-# Conteúdo da Imagem Docker
+## 🚀 Stack Tecnológica
 
-- <b>PHP</b>, e diversas extensões e Libs do PHP, incluindo php-redis, pgsql, mysql, entre outras.
+- **Frontend**: Angular (SPA)
+- **Backend**: Laravel 11 + Octane (Swoole)
+- **Banco de Dados**: PostgreSQL 16
+- **Cache/Filas**: Redis 7
+- **Proxy Reverso**: Nginx
+- **Email (Dev)**: Mailhog
+- **Containerização**: Docker + Docker Compose
 
-- <b>Nginx</b>, como proxy reverso/servidor. Por fim de testes é que o Nginx está presente nesta imagem, em um momento de otimização está imagem deixará de ter o Nginx.
+## 📁 Estrutura do Projeto
+app/
+├── gara_backend/ # API Laravel + Octane
+├── gara_frontend/ # SPA Angular
+├── docker/ # Configurações Docker
+├── scripts/ # Scripts de automação
+└── docker-compose.* # Orquestração de containers
 
-- <b>Supervisor</b>, indispensal para executarmos a aplicação PHP e permitir por exemplo a execução de filas e jobs.
 
-- <b>Composer</b>, afinal de contas é preciso baixar as dependências mais atuais toda vez que fomos crontruir uma imagem Docker.
+## 🛠️ Desenvolvimento Local
 
-# Vídeos Tutorial
+### Pré-requisitos
+- Docker 29.2.1
+- Docker Compose 2.8.10
+- Git
 
-[Vídeo Sobre Criação do Dockerfile e do Docker Compose file](https://youtu.be/iDJjb2zYa4c)
+### Subir ambiente de desenvolvimento
 
-# Passo a Passo
+```bash
+# Subir todos os serviços com hot reload
+./scripts/dev-up.sh
 
-## Certifique-se de estar com o Docker em execução.
+# Ou manualmente
+docker-compose -f docker-compose.dev.yml up -d
+Acessar serviços
+Frontend: http://localhost:4200
+Backend API: http://localhost:8000
+Nginx (Proxy): http://localhost
+Mailhog UI: http://localhost:8025
+PostgreSQL: localhost:5432
+Parar ambiente
+bash
+Copy
+./scripts/dev-down.sh
 
-```sh
-docker ps
-```
-
-## Certifique-se de ter o Docker Compose instalado.
-
-```sh
-docker compose version
-```
-
-## Clone sua aplicação Laravel para a pasta 'app'. Caso a pasta app não existe, crie a pasta.
-
-A listagem de pastas do projeto deve ficar:
-
-```
-    app/
-    docker/
-    .gitignore
-    docker-compose.yml
-    readme.md
-```
-
-## Certifique-se que sua aplicação Laravel ficou em `./app` e que existe o seguinte caminho: `/app/public/index.php`
-
-## Certifique-se que sua aplicação Laravel possuí um .env e que este .env está com a `APP_KEY=` definida com valor válido.
-
-## Contruir a imagem Docker, execute:
-
-```sh
-docker compose build
-```
-
-## Caso não queira utilizar o cache da imagem presente no seu ambiente Docker, então execute:
-
-```sh
-docker compose build --no-cache
-```
-
-## Para subir a aplicação, execute:
-
-```sh
-docker compose up
-```
-
-- Para rodar o ambiente sem precisar manter o terminar aberto, execute:
-
-```sh
-docker compose up -d
-```
-
-## Para derrubar a aplicação, execute:
-
-```sh
-docker compose down
-```
-
-## Para entrar dentro do Container da Aplicação, execute:
-
-```sh
-docker exec -it web bash
-```
-
-# Solução de Problemas
-
-## Problema de permissão
-
-- Quando for criado novos arquivos, ou quando for a primeira inicialização do container com a aplicação, pode então haver um erro de permissão de acesso as pastas, neste caso, entre dentro do container da aplicação e execeute.
-
-```sh
-cd /var/www && \
-chown -R www-data:www-data * && \
-chmod -R o+w app
-```
+# Ou manualmente
+docker-compose -f docker-compose.dev.yml down

@@ -1,1 +1,30 @@
-app
+ap# .gitignore (raiz do projeto)
+
+# Environment files
+.env
+.env.local
+.env.*.local
+.env.prod
+
+# Docker volumes
+postgres_data/
+redis_data/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Backup files
+*.bak
+*.backup
